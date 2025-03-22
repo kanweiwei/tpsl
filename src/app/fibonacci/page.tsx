@@ -17,6 +17,8 @@ interface FibResult {
   entryPoint: number;
   stopLoss: number;
   takeProfit: number;
+  profitPercentage: number; // 盈利百分比字段
+  lossPercentage: number; // 亏损百分比字段
   scenario: string;
   fibLevels: {
     level: string;
@@ -80,12 +82,20 @@ export default function FibonacciTool() {
     const longRiskDistance = longTP - longSL;
     const longEntry = longTP - longRiskDistance / rr;
 
+    // 计算盈利百分比和亏损百分比
+    const longProfitPercentage = ((longTP - longEntry) / longEntry) * 100;
+    const longLossPercentage = ((longEntry - longSL) / longEntry) * 100;
+    const shortProfitPercentage = ((shortEntry - shortTP) / shortEntry) * 100;
+    const shortLossPercentage = ((shortSL - shortEntry) / shortEntry) * 100;
+    
     setResults([
       {
         scenario: '多头',
         entryPoint: longEntry,
         stopLoss: longSL,
         takeProfit: longTP,
+        profitPercentage: longProfitPercentage,
+        lossPercentage: longLossPercentage,
         fibLevels: longScenario
       },
       {
@@ -93,6 +103,8 @@ export default function FibonacciTool() {
         entryPoint: shortEntry,
         stopLoss: shortSL,
         takeProfit: shortTP,
+        profitPercentage: shortProfitPercentage,
+        lossPercentage: shortLossPercentage,
         fibLevels: shortScenario
       }
     ]);
@@ -145,8 +157,8 @@ export default function FibonacciTool() {
                   <div className="space-y-4">
                     <div>
                       <p>入场点：{formatNumber(result.entryPoint)}</p>
-                      <p>止损：{formatNumber(result.stopLoss)}</p>
-                      <p>止盈：{formatNumber(result.takeProfit)}</p>
+                      <p>止损：{formatNumber(result.stopLoss)} ({result.lossPercentage.toFixed(2)}%)</p>
+                      <p>止盈：{formatNumber(result.takeProfit)} ({result.profitPercentage.toFixed(2)}%)</p>
                     </div>
                     <div>
                       <h4 className="font-semibold mb-2">斐波那契水平</h4>
