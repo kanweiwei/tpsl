@@ -8,13 +8,4 @@ const nextConfig: NextConfig = {
 // eslint-disable-next-line import/no-anonymous-default-export
 export default {
   ...nextConfig,
-  async redirects() {
-    return [
-      {
-        source: "/",
-        destination: "/fibonacci",
-        permanent: true,
-      },
-    ];
-  },
 };
