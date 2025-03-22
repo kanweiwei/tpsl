@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const formatNumber = (num: number): string => {
   if (num >= 10000) return num.toFixed(0);
@@ -15,6 +15,7 @@ const formatNumber = (num: number): string => {
 
 interface FibResult {
   entryPoint: number;
+  entryPointMax: number;
   stopLoss: number;
   takeProfit: number;
   profitPercentage: number; // 盈利百分比字段
@@ -27,39 +28,41 @@ interface FibResult {
 }
 
 export default function FibonacciTool() {
-  const [highPrice, setHighPrice] = useState('');
-  const [lowPrice, setLowPrice] = useState('');
-  const [riskRewardRatio, setRiskRewardRatio] = useState('2');
+  const [highPrice, setHighPrice] = useState("");
+  const [lowPrice, setLowPrice] = useState("");
   const [results, setResults] = useState<FibResult[]>([]);
 
-  const calculateFibLevels = (high: number, low: number, isShort: boolean = false) => {
+  const calculateFibLevels = (
+    high: number,
+    low: number,
+    isShort: boolean = false
+  ) => {
     const diff = high - low;
     const levels = [
-      { level: '0', value: 0 },
-      { level: '0.236', value: 0.236 },
-      { level: '0.382', value: 0.382 },
-      { level: '0.5', value: 0.5 },
-      { level: '0.618', value: 0.618 },
-      { level: '0.786', value: 0.786 },
-      { level: '1', value: 1 },
-      { level: '1.618', value: 1.618 },
-      { level: '2.618', value: 2.618 },
-      { level: '3.618', value: 3.618 },
-      { level: '4.236', value: 4.236 }
+      { level: "0%", value: 0 },
+      { level: "23.6%", value: 0.236 },
+      { level: "38.2%", value: 0.382 },
+      { level: "50%", value: 0.5 },
+      { level: "61.8%", value: 0.618 },
+      { level: "78.6%", value: 0.786 },
+      { level: "100%", value: 1 },
+      { level: "161.8%", value: 1.618 },
+      // { level: '261.8%', value: 2.618 },
+      // { level: '361.8%', value: 3.618 },
+      // { level: '423.6%', value: 4.236 }
     ];
 
     return levels.map(({ level, value }) => ({
       level,
-      price: isShort ? high - diff * value : low + diff * value
+      price: isShort ? high - diff * value : low + diff * value,
     }));
   };
 
   const calculateScenarios = () => {
     const high = parseFloat(highPrice);
     const low = parseFloat(lowPrice);
-    const rr = parseFloat(riskRewardRatio);
 
-    if (isNaN(high) || isNaN(low) || isNaN(rr) || high <= low) {
+    if (isNaN(high) || isNaN(low) || high <= low) {
       return;
     }
 
@@ -69,44 +72,47 @@ export default function FibonacciTool() {
     // 做空：止损在高点，止盈在38.2%回调位置
     const shortTP = high - (high - low) * 0.382;
     const shortSL = high;
-    // 修正：根据盈亏比计算入场点
-    // 止损距离 = shortSL - shortEntry
-    // 止盈距离 = shortEntry - shortTP
-    // 止盈距离 = rr * 止损距离
-    // shortEntry - shortTP = rr * (shortSL - shortEntry)
-    const shortEntry = (shortTP + rr * shortSL) / (1 + rr);
+    
+    // 使用盈亏比2和3计算入场点范围
+    const shortEntryRR2 = (shortTP + 2 * shortSL) / (1 + 2);
+    const shortEntryRR3 = (shortTP + 3 * shortSL) / (1 + 3);
 
     // 做多：止损在低点，止盈在38.2%回调位置
     const longTP = low + (high - low) * 0.382;
     const longSL = low;
     const longRiskDistance = longTP - longSL;
-    const longEntry = longTP - longRiskDistance / rr;
+    const longEntryRR2 = longTP - longRiskDistance / 2;
+    const longEntryRR3 = longTP - longRiskDistance / 3;
 
-    // 计算盈利百分比和亏损百分比
-    const longProfitPercentage = ((longTP - longEntry) / longEntry) * 100;
-    const longLossPercentage = ((longEntry - longSL) / longEntry) * 100;
-    const shortProfitPercentage = ((shortEntry - shortTP) / shortEntry) * 100;
-    const shortLossPercentage = ((shortSL - shortEntry) / shortEntry) * 100;
-    
+    // 计算盈利百分比和亏损百分比 (使用盈亏比2.5的中间值计算百分比)
+    const longEntryAvg = (longEntryRR2 + longEntryRR3) / 2;
+    const shortEntryAvg = (shortEntryRR2 + shortEntryRR3) / 2;
+    const longProfitPercentage = ((longTP - longEntryAvg) / longEntryAvg) * 100;
+    const longLossPercentage = ((longEntryAvg - longSL) / longEntryAvg) * 100;
+    const shortProfitPercentage = ((shortEntryAvg - shortTP) / shortEntryAvg) * 100;
+    const shortLossPercentage = ((shortSL - shortEntryAvg) / shortEntryAvg) * 100;
+
     setResults([
       {
-        scenario: '多头',
-        entryPoint: longEntry,
+        scenario: "多头",
+        entryPoint: Math.min(longEntryRR2, longEntryRR3),
+        entryPointMax: Math.max(longEntryRR2, longEntryRR3),
         stopLoss: longSL,
         takeProfit: longTP,
         profitPercentage: longProfitPercentage,
         lossPercentage: longLossPercentage,
-        fibLevels: longScenario
+        fibLevels: longScenario,
       },
       {
-        scenario: '空头',
-        entryPoint: shortEntry,
+        scenario: "空头",
+        entryPoint: Math.min(shortEntryRR2, shortEntryRR3),
+        entryPointMax: Math.max(shortEntryRR2, shortEntryRR3),
         stopLoss: shortSL,
         takeProfit: shortTP,
         profitPercentage: shortProfitPercentage,
         lossPercentage: shortLossPercentage,
-        fibLevels: shortScenario
-      }
+        fibLevels: shortScenario,
+      },
     ]);
   };
 
@@ -134,12 +140,7 @@ export default function FibonacciTool() {
           </div>
           <div className="flex items-center gap-4">
             <label className="w-24 text-right">风险收益比：</label>
-            <Input
-              type="number"
-              value={riskRewardRatio}
-              onChange={(e) => setRiskRewardRatio(e.target.value)}
-              className="w-48"
-            />
+            <div className="w-48 text-sm text-gray-500">2-3 (内置范围)</div>
           </div>
           <Button onClick={calculateScenarios} className="mt-4">
             计算
@@ -156,17 +157,51 @@ export default function FibonacciTool() {
                 <CardContent>
                   <div className="space-y-4">
                     <div>
-                      <p>入场点：{formatNumber(result.entryPoint)}</p>
-                      <p>止损：{formatNumber(result.stopLoss)} ({result.lossPercentage.toFixed(2)}%)</p>
-                      <p>止盈：{formatNumber(result.takeProfit)} ({result.profitPercentage.toFixed(2)}%)</p>
+                      <p className="text-green-500">入场点范围：{formatNumber(result.entryPoint)} - {formatNumber(result.entryPointMax)}</p>
+                      <p>
+                        止损：{formatNumber(result.stopLoss)} (
+                        {result.lossPercentage.toFixed(2)}%)
+                      </p>
+                      <p className="text-blue-500">
+                        止盈：{formatNumber(result.takeProfit)} (
+                        {result.profitPercentage.toFixed(2)}%)
+                      </p>
                     </div>
                     <div>
                       <h4 className="font-semibold mb-2">斐波那契水平</h4>
-                      {result.fibLevels.map((level, i) => (
-                        <p key={i}>
-                          {level.level}: {formatNumber(level.price)}
-                        </p>
-                      ))}
+                      <div className="space-y-1">
+                        {result.scenario === "多头"
+                          ? [...result.fibLevels].reverse().map((level, i) => (
+                              <div key={i} className="border-b">
+                                <div className="flex items-center">
+                                  <div className="w-20 font-medium">
+                                    {level.level}
+                                  </div>
+                                  <div>{formatNumber(level.price)}</div>
+                                </div>
+                                {level.level === "38.2%" && (
+                                  <div className="ml-2 text-xs text-blue-500 italic">
+                                    重要反弹点，强势趋势可能在此结束修正
+                                  </div>
+                                )}
+                              </div>
+                            ))
+                          : result.fibLevels.map((level, i) => (
+                              <div key={i} className="border-b">
+                                <div key={i} className="flex items-center">
+                                  <div className="w-20 font-medium">
+                                    {level.level}
+                                  </div>
+                                  <div>{formatNumber(level.price)}</div>
+                                </div>
+                                {level.level === "38.2%" && (
+                                  <div className="ml-2 text-xs text-blue-500 italic">
+                                    重要反弹点，强势趋势可能在此结束修正
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                      </div>
                     </div>
                   </div>
                 </CardContent>
